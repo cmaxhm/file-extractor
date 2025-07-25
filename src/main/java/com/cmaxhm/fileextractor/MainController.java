@@ -2,6 +2,8 @@ package com.cmaxhm.fileextractor;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.concurrent.Task;
@@ -22,6 +24,7 @@ public class MainController {
   private File selectedSourceDirectory;
   private File selectedDestinationDirectory;
   private String selectedFileFormat;
+  private final BooleanProperty isExtracting = new SimpleBooleanProperty(false);
   private final StringProperty sourceDirectorySelected = new SimpleStringProperty();
   private final StringProperty destinationDirectorySelected = new SimpleStringProperty();
 
@@ -53,12 +56,14 @@ public class MainController {
 
     this.extractButton.disableProperty().bind(
       Bindings.createBooleanBinding(() ->
-          this.sourceDirectorySelected.get() == null
-            || this.sourceDirectorySelected.get().isEmpty()
-            || this.destinationDirectorySelected.get() == null
-            || this.destinationDirectorySelected.get().isEmpty(),
+        this.sourceDirectorySelected.get() == null
+          || this.sourceDirectorySelected.get().isEmpty()
+          || this.destinationDirectorySelected.get() == null
+          || this.destinationDirectorySelected.get().isEmpty()
+          || this.isExtracting.get(),
         this.sourceDirectorySelected,
-        this.destinationDirectorySelected
+        this.destinationDirectorySelected,
+        this.isExtracting
       )
     );
   }
@@ -93,6 +98,7 @@ public class MainController {
 
   @FXML
   protected void onExtract() {
+    this.isExtracting.set(true);
     this.outputTextArea.clear();
     this.outputTextArea.appendText("▶ Initializing...\n");
 
@@ -125,12 +131,18 @@ public class MainController {
 
     task.setOnFailed(e -> {
       Throwable exception = task.getException();
+
+      this.isExtracting.set(false);
       Platform.runLater(() -> this.outputTextArea.appendText("Error during extraction: " + exception.getMessage() + "\n"));
     });
 
-    task.setOnSucceeded(e -> Platform.runLater(() -> this.outputTextArea.appendText("▶ Extraction complete!\n----------\n")));
+    task.setOnSucceeded(e -> {
+      this.isExtracting.set(false);
+      Platform.runLater(() -> this.outputTextArea.appendText("▶ Extraction complete!\n----------\n"));
+    });
 
     Thread thread = new Thread(task);
+
     thread.setDaemon(true);
     thread.start();
   }
